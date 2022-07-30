@@ -76,7 +76,7 @@ const initialisePuppeteer = async () => {
     const page = await browser.newPage();
 
     // placeholder for the actual item that needs to be reviewed
-    const searchQuery = "turo";
+    const searchQuery = "taobao";
 
     await page.setRequestInterception(true);
     page.on('request', (request) => {
@@ -90,25 +90,25 @@ const initialisePuppeteer = async () => {
 
     await page.goto(TARGET_URL);
 
-    await page.type('input[class="gLFyf gsfi"]', searchQuery + " review + site:www.reddit.com");
+    await page.type('input[class="gLFyf gsfi"]', searchQuery + " review reddit site:www.reddit.com");
     await page.keyboard.press('Enter');
 
     await page.waitForSelector('div[class="g Ww4FFb tF2Cxc"]');
-    const urls = await page.$$eval('div.g.Ww4FFb.tF2Cxc a', el => el.map(url => url.getAttribute('href')));
+    const urls = await page.$$eval('div.yuRUbf a', el => el.map(url => url.getAttribute('href')));
   
     for (let i = 0; i < urls.length; ++i){
 
       await page.goto(urls[i]);
 
-      // sometimes, the content inside a p tag can be a hyperlink, not actual text, which fucks this whole thing. fix
+      // fix this so that it ignores p tags without text/with hyperlinks
       try {
         await page.waitForSelector('p[class="_1qeIAgB0cPwnLhDF9XSiJM"]', {timeout: 50});
         const text = await page.$$eval('p._1qeIAgB0cPwnLhDF9XSiJM', el => el.map(item => item.textContent));
         for (let j = 0; j < text.length; ++j){
-          obj.push(text[j]); 
+          obj.push(text[j]);
         }
       } catch (error) {
-        console.log("This reddit post doesn't include any text.")
+        console.log("This reddit post doesn't include any text.");
       }
     }
 

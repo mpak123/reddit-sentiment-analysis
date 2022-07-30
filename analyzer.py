@@ -5,12 +5,10 @@ from nltk.sentiment import SentimentIntensityAnalyzer
 from statistics import mean
 
 response = requests.get("http://localhost:3000")
-comments = ""
 while not response:
     response = requests.get("http://localhost:3000")
-    comments = response.text
 
-comments = json.loads(comments)
+comments = json.loads(response.text)
 
 sia = SentimentIntensityAnalyzer()
 stopwords = nltk.corpus.stopwords.words("english")
@@ -39,7 +37,7 @@ def is_positive(text) -> bool:
     print(mean(scores))
     return mean(scores) >= 0.05
 
-def collocations(text):
+def common_words(text):
     tmp = []
     for sentence in text:
         words = sentence.split()
@@ -47,11 +45,11 @@ def collocations(text):
         for word, tag in tags:
             if not word in stopwords and tag.startswith('JJ'):
                 tmp.append(word)
-    finder = nltk.collocations.TrigramCollocationFinder.from_words(tmp)
-    return finder
+    finder = nltk.FreqDist(tmp)
+    return finder.most_common(20)
 
-# I think something weird happened to is_positive function. Something to keep in mind
-print(collocations(comments).ngram_fd.most_common(5))
+# something may be wrong with is_positive.
+print(common_words(comments))
 print(analysis(comments))
 print(is_positive(comments))
 
