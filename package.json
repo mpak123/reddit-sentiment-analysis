@@ -5,13 +5,14 @@
   "main": "index.js",
   "scripts": {
     "test": "echo \"Error: no test specified\" && exit 1",
-    "start": "nodemon index",
+    "start": "nodemon server/index",
     "debug": "nodemon --exec \"node --inspect-brk=0.0.0.0:9229 --require ts-node/register src/app.ts\"",
     "ignore": "nodemon --ignore data/ --ignore my/ --ignore node_modules/"
   },
   "author": "",
   "license": "ISC",
   "dependencies": {
+    "cors": "^2.8.5",
     "express": "^4.18.1",
     "nodemon": "^2.0.19",
     "puppeteer": "^15.5.0",

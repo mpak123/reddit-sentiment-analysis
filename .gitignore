@@ -1,3 +1,5 @@
 node_modules/
 my/
 data/
+__pycache__/
+*.py[cod]

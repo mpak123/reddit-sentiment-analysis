@@ -1,10 +1,13 @@
 const express = require('express');
 const puppeteer = require('puppeteer');
 const app = express();
-const port = 3000;
+const port = 3001;
 
 // data collection
 let obj = []; 
+
+// path to python script
+let pythonScript = "./server/analyzer.py";
 
 // optimal configuration for puppeteer
 const minimal_args = [
@@ -63,9 +66,8 @@ app.listen(port, () => {
 });
 
 // the URL we would like to visit with Puppeteer
-const TARGET_URL = 'https://www.google.com';
+const TARGET_URL = 'https://www.google.com/';
 const initialisePuppeteer = async () => {
-    const start = performance.now();
 
     const browser = await puppeteer.launch({
       headless: true,
@@ -90,7 +92,7 @@ const initialisePuppeteer = async () => {
 
     await page.goto(TARGET_URL);
 
-    await page.type('input[class="gLFyf gsfi"]', searchQuery + " review reddit site:www.reddit.com");
+    await page.type('input[class="gLFyf gsfi"]', searchQuery + " review site:www.reddit.com");
     await page.keyboard.press('Enter');
 
     await page.waitForSelector('div[class="g Ww4FFb tF2Cxc"]');
@@ -100,12 +102,17 @@ const initialisePuppeteer = async () => {
 
       await page.goto(urls[i]);
 
-      // fix this so that it ignores p tags without text/with hyperlinks
       try {
         await page.waitForSelector('p[class="_1qeIAgB0cPwnLhDF9XSiJM"]', {timeout: 50});
         const text = await page.$$eval('p._1qeIAgB0cPwnLhDF9XSiJM', el => el.map(item => item.textContent));
         for (let j = 0; j < text.length; ++j){
-          obj.push(text[j]);
+          let string = "";
+          for (const word of text[j].split(" ")){
+            if (word.length <= 50){
+              string += word + " ";
+            }
+          }
+          obj.push(string);
         }
       } catch (error) {
         console.log("This reddit post doesn't include any text.");
@@ -114,9 +121,22 @@ const initialisePuppeteer = async () => {
 
     browser.close();
 
-    app.get('/', (req, res) => {
+    app.get('/data', (req, res) => {
       res.send(obj);
     });
 
-    console.log(performance.now() - start);
+    app.get('/result', (req, res) => {
+      // allow node to call python script and send data to python
+      const spawn = require('child_process').spawn;
+      const scriptExecution = spawn('python3', [pythonScript]);
+
+      let result = {};
+    
+      scriptExecution.stdout.on('data', function(data) {
+        result = JSON.parse(Buffer.from(data).toString());
+      });
+      scriptExecution.on('close', function(code) {
+        res.send(result);
+      });
+    });
 }
