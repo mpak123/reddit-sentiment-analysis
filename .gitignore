@@ -3,3 +3,5 @@ my/
 data/
 __pycache__/
 *.py[cod]
+cline/node_modules
+

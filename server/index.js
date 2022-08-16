@@ -3,13 +3,16 @@ const PromisePool = require('es6-promise-pool');
 const bodyParser = require('body-parser');
 const puppeteer = require('puppeteer-extra');
 const StealthPlugin = require('puppeteer-extra-plugin-stealth');
-//const AdblockerPlugin = require('puppeteer-extra-plugin-adblocker');
 const app = express();
 const port = 3001;
+const path = require('path');
 
 // make sure puppeteer is anonymized and using stealth
 puppeteer.use(StealthPlugin());
-//puppeteer.use(AdblockerPlugin({ blockTrackers: true }));
+
+// Have Node serve the files for our built React app
+app.use(express.static(path.resolve(__dirname, '../client/build')));
+
 
 // data collection
 let obj = []; 
