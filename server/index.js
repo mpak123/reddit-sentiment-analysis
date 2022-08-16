@@ -4,7 +4,7 @@ const bodyParser = require('body-parser');
 const puppeteer = require('puppeteer-extra');
 const StealthPlugin = require('puppeteer-extra-plugin-stealth');
 const app = express();
-const port = 3001;
+const port = process.env.PORT || 3001;
 const path = require('path');
 
 // make sure puppeteer is anonymized and using stealth
