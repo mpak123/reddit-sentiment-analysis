@@ -1,7 +1,15 @@
 const express = require('express');
-const puppeteer = require('puppeteer');
+const PromisePool = require('es6-promise-pool');
+const bodyParser = require('body-parser');
+const puppeteer = require('puppeteer-extra');
+const StealthPlugin = require('puppeteer-extra-plugin-stealth');
+//const AdblockerPlugin = require('puppeteer-extra-plugin-adblocker');
 const app = express();
 const port = 3001;
+
+// make sure puppeteer is anonymized and using stealth
+puppeteer.use(StealthPlugin());
+//puppeteer.use(AdblockerPlugin({ blockTrackers: true }));
 
 // data collection
 let obj = []; 
@@ -60,14 +68,20 @@ const blockedDomains = [
   'https://cdn.permutive.com'];
   
 app.listen(port, () => {
-    // Start the Puppeteer script whenever the app launches or changes are detected
-    initialisePuppeteer();
     return console.log(`Express is listening at http://localhost:${port}`);
+});
+
+// configure parsing
+app.use('/request', bodyParser.text());
+
+app.post('/request', (req, res) => {
+  initialisePuppeteer(req.body);
 });
 
 // the URL we would like to visit with Puppeteer
 const TARGET_URL = 'https://www.google.com/';
-const initialisePuppeteer = async () => {
+
+const initialisePuppeteer = async (text) => {
 
     const browser = await puppeteer.launch({
       headless: true,
@@ -77,47 +91,28 @@ const initialisePuppeteer = async () => {
   
     const page = await browser.newPage();
 
-    // placeholder for the actual item that needs to be reviewed
-    const searchQuery = "taobao";
+    const searchQuery = text;
 
-    await page.setRequestInterception(true);
-    page.on('request', (request) => {
-      const url = request.url();
-      if (request.resourceType() === 'document' || blockedDomains.some((d) => url.startsWith(d)))  {
-        request.continue();
-      } else {
-        request.abort();
-      }
-    });
+    await setFilters(page);
 
     await page.goto(TARGET_URL);
 
     await page.type('input[class="gLFyf gsfi"]', searchQuery + " review site:www.reddit.com");
     await page.keyboard.press('Enter');
 
-    await page.waitForSelector('div[class="g Ww4FFb tF2Cxc"]');
+    await page.waitForSelector('div[class="g Ww4FFb vt6azd tF2Cxc"]');
     const urls = await page.$$eval('div.yuRUbf a', el => el.map(url => url.getAttribute('href')));
+
+    await page.close();
+
+    const promiseProducer = () => {
+      const url = urls.pop();
   
-    for (let i = 0; i < urls.length; ++i){
+      return url ? crawlUrl(url, browser) : null;
+    };
 
-      await page.goto(urls[i]);
-
-      try {
-        await page.waitForSelector('p[class="_1qeIAgB0cPwnLhDF9XSiJM"]', {timeout: 50});
-        const text = await page.$$eval('p._1qeIAgB0cPwnLhDF9XSiJM', el => el.map(item => item.textContent));
-        for (let j = 0; j < text.length; ++j){
-          let string = "";
-          for (const word of text[j].split(" ")){
-            if (word.length <= 50){
-              string += word + " ";
-            }
-          }
-          obj.push(string);
-        }
-      } catch (error) {
-        console.log("This reddit post doesn't include any text.");
-      }
-    }
+    const pool = new PromisePool(promiseProducer, urls.length);
+    await pool.start();
 
     browser.close();
 
@@ -139,4 +134,43 @@ const initialisePuppeteer = async () => {
         res.send(result);
       });
     });
+}
+
+async function setFilters(page) {
+  await page.setRequestInterception(true);
+    page.on('request', (request) => {
+      const url = request.url();
+      if (request.resourceType() === 'document' || blockedDomains.some((d) => url.startsWith(d)))  {
+        request.continue();
+      } else {
+        request.abort();
+      }
+    });
+}
+
+async function crawlUrl(url, browser) {
+  //Open new tab
+  const page = await browser.newPage();
+  await setFilters(page);
+  await page.goto(url);
+
+  //get text
+  try {
+    await page.waitForSelector('p[class="_1qeIAgB0cPwnLhDF9XSiJM"]', {timeout: 1000});
+    const text = await page.$$eval('p._1qeIAgB0cPwnLhDF9XSiJM', el => el.map(item => item.textContent));
+    for (let j = 0; j < text.length; ++j){
+      let string = "";
+      for (const word of text[j].split(" ")){
+        if (word.length <= 50){
+          string += word + " ";
+        }
+      }
+      obj.push(string);
+    }
+  } catch (error) {
+    console.log("This reddit post doesn't include any text.");
+  }
+
+  await page.close();
+
 }

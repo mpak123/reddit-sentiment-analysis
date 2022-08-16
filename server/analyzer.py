@@ -44,7 +44,7 @@ def common_words(text):
             if not word in stopwords and tag.startswith('JJ') and word.isalpha():
                 tmp.append(word)
     finder = nltk.FreqDist(tmp)
-    return finder.most_common(20)
+    return finder.most_common(9)
 
 def main(text):
     result = {}
